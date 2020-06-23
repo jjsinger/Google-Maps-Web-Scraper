@@ -4,8 +4,9 @@ from datetime import datetime, timedelta
 import argparse
 import csv
 
-HEADER = ['id_review', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user']
-HEADER_W_SOURCE = ['id_review', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user', 'url_source']
+HEADER = ['id_review', 'company_name', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user'] #added company_name 6/22/2020
+HEADER_W_SOURCE = ['id_review', 'company_name','caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user' 'url_source']
+
 
 def csv_writer(source_field, path='data/', outfile='gm_reviews.csv'):
     targetfile = open(path + outfile, mode='w', encoding='utf-8', newline='\n')
@@ -33,15 +34,19 @@ if __name__ == '__main__':
 
     # store reviews in CSV file
     writer = csv_writer(args.source)
+    print(args.source)
 
     with GoogleMapsScraper(debug=args.debug) as scraper:
         with open(args.i, 'r') as urls_file:
             for url in urls_file:
-
+                print(url)
+                print(url.split('/'))
                 if args.place:
+                    print('test')
                     print(scraper.get_account(url))
                 else:
                     error = scraper.sort_by_date(url)
+                    print('ERROR: ', error)
                     if error == 0:
 
                         n = 0

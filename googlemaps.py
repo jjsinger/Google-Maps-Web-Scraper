@@ -46,8 +46,13 @@ class GoogleMapsScraper:
         tries = 0
         while not clicked and tries < MAX_RETRY:
             try:
+                print("In try statement")
                 if not self.debug:
-                    menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.cYrDcjyGO77__container')))
+                    print("Self.debug: ", self.debug)
+                    time.sleep(5)
+                    #menu_bt = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div.cYrDcjyGO77__container')))
+                    menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
+                    print("MENU_BT: ", menu_bt)
                 else:
                     menu_bt = wait.until(EC.element_to_be_clickable((By.XPATH, '//button[@data-value=\'Sort\']')))
                 menu_bt.click()
@@ -60,6 +65,7 @@ class GoogleMapsScraper:
 
             # failed to open the dropdown
             if tries == MAX_RETRY:
+                print('Failed to open the dropdown')
                 return -1
 
         # second element of the list: most recent
@@ -70,6 +76,19 @@ class GoogleMapsScraper:
         time.sleep(5)
 
         return 0
+    
+    def get_title(self):
+        #return title from head
+        response = BeautifulSoup(self.driver.page_source, 'html.parser')
+        hero_title1 = response.title.text.split('-')[0]
+        hero_title = re.sub("[^0-9a-zA-Z]+", "'", hero_title1, 1)
+        if hero_title.split("'")[1][0] == 's':
+            hero_title = response.title.text.split('-')[0]
+            hero_title = re.sub("[^0-9a-zA-Z]+", "'", hero_title, 1)
+        else:
+            hero_title = response.title.text.split('-')[0]
+        #hero_title = response.find('div', class_='section-hero-header-title-title').find('span').text
+        return hero_title
 
     def get_reviews(self, offset):
 
@@ -138,8 +157,13 @@ class GoogleMapsScraper:
             n_photos = 0
 
         user_url = review.find('a')['href']
+        #call get_title function
+        hero_title = self.get_title() 
 
         item['id_review'] = id_review
+        #store hero_title in new column
+        item['company_name'] = hero_title
+        
         item['caption'] = review_text
 
         # depends on language, which depends on geolocation defined by Google Maps
@@ -154,6 +178,8 @@ class GoogleMapsScraper:
         item['n_review_user'] = n_reviews
         item['n_photo_user'] = n_photos
         item['url_user'] = user_url
+        
+        
 
         return item
 
@@ -208,7 +234,10 @@ class GoogleMapsScraper:
         options.add_argument("--window-size=1366,768")
         options.add_argument("--disable-notifications")
         options.add_experimental_option('prefs', {'intl.accept_languages': 'en_GB'})
-        input_driver = webdriver.Chrome(chrome_options=options)
+        experimentalFlags = ['same-site-by-default-cookies@1','cookies-without-same-site-must-be-secure@1']
+        chromeLocalStatePrefs = { 'browser.enabled_labs_experiments' : experimentalFlags}
+        options.add_experimental_option('localState',chromeLocalStatePrefs)
+        input_driver = webdriver.Chrome(chrome_options=options, executable_path=r'C:\\Users\\Snowbird\\.wdm\\drivers\\chromedriver\\win32\\83.0.4103.39\chromedriver.exe')
 
         return input_driver
 

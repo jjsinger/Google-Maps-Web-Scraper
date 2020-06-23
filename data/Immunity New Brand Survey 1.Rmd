@@ -1,0 +1,222 @@
+---
+title: "Immunity New Brand Survey 1"
+author: "Savannah Benson"
+date: "6/8/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+
+```{r}
+
+#install packages 
+
+install.packages('tidyverse')
+install.packages('tidytext')
+install.packages('textdata')
+install.packages('rvest')
+install.packages('topicmodels')
+install.packages('wordcloud')
+
+
+# Load libraries
+
+library(tidyverse)
+library(tidytext)
+library(textdata)
+library(rvest)
+library(topicmodels)
+library(wordcloud)
+
+```
+
+```{r}
+
+# Import and tidy data.
+gm_reviews <- read_csv("gm_reviews.csv")
+#Q4 <- immune_expectations[,c(1,2)]
+#Q19 <- immune_expectations[,c(1,3)]
+gm_reviews[c(1,2,3,4,5,6,7)] %>% head() %>% View()
+
+gm_reviews[c(2,3)]
+
+
+
+```
+Q4 Word Frequency 
+
+```{r}
+### Q4 Word Frequency
+
+# Tokenize
+clean_Q4 <- Q4 %>% 
+  transmute(
+    Response = caption,
+    Q = "Q4",
+    review = Q4) %>%
+  unnest_tokens(word, review)
+
+# Remove stop words
+clean_Q4 <- clean_Q4 %>% 
+  anti_join(stop_words)
+
+# Word Count
+Q4_Count <- clean_Q4 %>% 
+  count(word) %>% 
+  arrange(desc(n))
+
+# Export csv file
+write.table(Q4_Count, file = "Williams_Word_Freq.csv", sep = ",", row.names = F)
+
+# Visualize Overall Word Frequency
+clean_Q4 %>%
+  count(word) %>%
+  filter(n > 2) %>% 
+  mutate(word = fct_reorder(word, n)) %>% 
+  ggplot(aes(x = word, y = n, fill = n)) + 
+  geom_col(show.legend = FALSE) +
+  labs(title = "Word Frequency",
+       subtitle = "Q4 What benefits do you expect when you take immunity products?",
+       y = "Count",
+       x = "Word") +
+  scale_x_reordered() +
+  coord_flip() +
+  theme_classic()
+
+# Word Cloud
+clean_Q4 %>%
+  count(word) %>%
+  with(wordcloud(word, n, min.freq = 2, colors=brewer.pal(6, "Dark2"))) 
+
+```
+
+
+### Q19 Word Frequency
+
+```{r}
+# Tokenize
+clean_19 <- Q19 %>% 
+  transmute(
+    Response = Response,
+    Q = "Q19",
+    review = Q19) %>%
+  unnest_tokens(word, review) %>% 
+  drop_na() # Lots of NA's that I went ahead and dropped
+
+# Remove stop words
+clean_19 <- clean_19 %>% 
+  anti_join(stop_words)
+
+# Word Count
+Q19_Count <- clean_19 %>% 
+  count(word) %>% 
+  arrange(desc(n))
+
+# Export csv file
+write.table(Q19_Count, file = "Q19_Word_Freq.csv", sep = ",", row.names = F)
+
+# Visualize Overall Word Frequency
+clean_19 %>%
+  count(word) %>%
+  filter(n > 1) %>% 
+  mutate(word = fct_reorder(word, n)) %>% 
+  ggplot(aes(x = word, y = n, fill = n)) + 
+  geom_col(show.legend = FALSE) +
+  labs(title = "Word Frequency",
+       subtitle = "Q19 What is your year of birth?",
+       y = "Count",
+       x = "Word") +
+  scale_x_reordered() +
+  coord_flip() +
+  theme_classic()
+
+# Word Cloud
+clean_19 %>%
+  count(word) %>%
+  with(wordcloud(word, n, min.freq = 2, colors=brewer.pal(4, "Paired")))  
+
+```
+
+
+### Topic Model on Q4: What do you expect when you take immune products? 
+
+```{r}
+# Run topic models for varying k.
+lda_out_k <- vector("list", length = 12)
+for (i in seq_along(lda_out_k)) {
+  lda_out_k[[i]] <- clean_Q4 %>% 
+    count(word, Q) %>% 
+    cast_dtm(Q, word, n) %>% 
+    LDA(
+      k = i + 1, 
+      method = "Gibbs",
+      control = list(seed = 42)
+    )
+}
+
+# Extract the model fit.
+lda_loglik <- vector("double", length = length(lda_out_k))
+for (i in seq_along(lda_loglik)) {
+  lda_loglik[[i]] <- as.numeric(logLik(lda_out_k[[i]]))
+}
+
+# Create a model fit data frame.
+lda_fit2 <- tibble(
+  k = 2:(length(lda_loglik) + 1),
+  model_fit = lda_loglik
+)
+
+# Visualize model fit.
+lda_fit2 %>% 
+  ggplot(aes(x = k, y = model_fit)) +
+  geom_line()
+
+```
+
+```{r}
+
+# Visualize for k = 10.
+lda_out_k[[9]] %>% 
+  tidy(matrix = "beta") %>% 
+  group_by(topic) %>% 
+  top_n(4, beta) %>% 
+  ungroup() %>%
+  mutate(term = reorder_within(term, beta, topic)) %>%
+  ggplot(aes(term, beta, fill = as.factor(topic))) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ topic, scales = "free") +
+  scale_x_reordered() +
+  coord_flip()
+
+```
+
+
+### TOPICS: Q4 "What do you expect when you take immune products?"
+
+1. Consumers expect to increase intake of vitamins to strengthen immunity when they take immune products.
+
+2. Consumers expect the healing process to speed up  - this topic also included a few comments on eating healthy to maintain a healthy immune system. 
+
+3. Consumer expects the immune product to contribute to a healthier body, clear thinking, and alleviate cold symptoms. Consumers expect their body to be more resistant to infections and wants the product to supplement the vitamins and minerals in which the body is deficient
+
+4. Consumer expects the product to contain essential nutrients to keep their body healthy. Responses within this topic surrounded expecting benefits to the immune system as well as "some other benefit to keep[the consumer] healthy."
+
+5. COnsumers expect immune products to boost the body's capacity to fight, resist, and protect against bacteria and viruses. They also mentioned an energy boost in addition to the immunity boost. (The key words within this group are improve and capacity).
+
+6. This topic consisted of comments about immune products making the consumer stronger -- feeling stronger, more energized, and more positivity about life. This is an interesting insight that plays more to the desire to have clarity and strength amidst cold and cough season. 
+
+7. Consumers expect immune products to provide the states results of the product without causing more harm. In addition, consumers hope to decrease their susceptibility to diseases when they take immune products. 
+
+8. Consumers within this topic model expressed expectations and interests in the immune product preventing them form getting sick all the time and shortening the recovery time. Within this segment, consumers want to feel energized, ensure that their vitamins are boosted, and that their immune system is "solidified." 
+
+9. Topic 9 shows that consumers want to take immune products to get sick less often, feel stronger, have more energy, & better age.
+
+
+10.Consumers expect immune products to decrease the chance of getting sick. This topic also contained comments about how "Vitamin C is the biggest immune boost of all time." 
+
+
