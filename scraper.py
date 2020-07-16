@@ -4,8 +4,8 @@ from datetime import datetime, timedelta
 import argparse
 import csv
 
-HEADER = ['id_review', 'company_name', 'caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user'] #added company_name 6/22/2020
-HEADER_W_SOURCE = ['id_review', 'company_name','caption', 'timestamp', 'rating', 'username', 'n_review_user', 'n_photo_user', 'url_user' 'url_source']
+HEADER = ['id_review', 'company_name', 'caption', 'timestamp', 'retrieval_date', 'rating', 'username', 'tot_user_reviews', 'n_review_user', 'n_photo_user', 'url_user'] #added company_name 6/22/2020
+HEADER_W_SOURCE = ['id_review', 'company_name','caption', 'timestamp', 'retrieval_date', 'rating', 'username', 'tot_user_reviews', 'n_review_user', 'n_photo_user', 'url_user' 'url_source']
 
 
 def csv_writer(source_field, path='data/', outfile='gm_reviews.csv'):
@@ -34,19 +34,23 @@ if __name__ == '__main__':
 
     # store reviews in CSV file
     writer = csv_writer(args.source)
-    print(args.source)
-
+    # print(args.source)
+    
     with GoogleMapsScraper(debug=args.debug) as scraper:
-        with open(args.i, 'r') as urls_file:
+        #maps_url = scraper.open_browser()
+        
+        with open(args.i, 'r+') as urls_file:
+            print('... File is opened and ready to write...')
+            #urls_file.write(maps_url)
             for url in urls_file:
                 print(url)
                 print(url.split('/'))
                 if args.place:
-                    print('test')
-                    print(scraper.get_account(url))
+                    # print('test')
+                    print('URL: ', scraper.get_account(url))
                 else:
                     error = scraper.sort_by_date(url)
-                    print('ERROR: ', error)
+                    print('ERROR CHECK: ', error)
                     if error == 0:
 
                         n = 0
