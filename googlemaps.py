@@ -12,6 +12,7 @@ import time
 import re
 import logging
 import traceback
+import numpy as np
 
 GM_WEBPAGE = 'https://www.google.com/maps/'
 MAX_WAIT = 10
@@ -36,6 +37,38 @@ class GoogleMapsScraper:
         self.driver.quit()
 
         return True
+    
+##    def open_browser(self):
+##        try:
+##            company_name = input("Enter in a company: ")
+##            
+##            #Open Google home page
+##            self.driver.get('http://www.google.com/')
+##            
+##            print('...opened Google Home Page...')
+##            time.sleep(5) # Let the user actually see something!
+##            search_box = self.driver.find_element_by_name('q')
+##            
+##            print('ELEMENT: ', self.driver.find_element_by_name('q'))
+##            search_box.send_keys(company_name)
+##            search_box.submit()
+##            
+##            print('submitted...')
+##            
+##            #Click on map icon id
+##            if not self.debug:
+##                map_icon = wait.until(EC.element_to_be_clickable((By.ID, 'lu_map')))
+##                map_icon.click()
+##            else:
+##                return -1
+##
+##            #Get url from maps web page
+##            print(self.driver.current_url)
+##            
+##            gm_url = 'test'
+##        except Exception as e:
+##            self.logger.warn('Failed to click map element')
+##        return
 
     def sort_by_date(self, url):
         self.driver.get(url)
@@ -138,8 +171,28 @@ class GoogleMapsScraper:
         except Exception as e:
             review_text = None
 
-        rating = float(review.find('span', class_='section-review-stars')['aria-label'].split(' ')[1])
+        rating = int(review.find('span', class_='section-review-stars')['aria-label'].split(' ')[1])
         relative_date = review.find('span', class_='section-review-publish-date').text
+        
+        
+        #Find subtitle and number of reviews the user has made
+
+        try:
+            if review.find('div', class_='section-review-subtitle').find_all('span')[0].text == 'Local Guide':
+                tot_user_reviews = review.find('div', class_='section-review-subtitle').find_all('span')[1].text
+
+                #Scrub out non alphanumeric characters
+                tot_user_reviews = re.sub("[^0-9a-zA-Z]+", " ", tot_user_reviews, 1)
+
+                #Find and group integers
+                tot_user_reviews = int(re.search(r'\d+', tot_user_reviews).group())
+                print(tot_user_reviews)
+            else:
+                tot_user_reviews = review.find('div', class_='section-review-subtitle').find('span').text
+        except Exception as e:
+            tot_user_reviews = np.nan
+
+        #Find n_reviews_photos
 
         try:
             n_reviews_photos = review.find('div', class_='section-review-subtitle').find_all('span')[1].text
@@ -175,6 +228,7 @@ class GoogleMapsScraper:
         item['retrieval_date'] = datetime.now()
         item['rating'] = rating
         item['username'] = username
+        item['tot_user_reviews'] = tot_user_reviews
         item['n_review_user'] = n_reviews
         item['n_photo_user'] = n_photos
         item['url_user'] = user_url
